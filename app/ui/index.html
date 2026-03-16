@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Log Monitor UI</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-white text-gray-900">
+  <div class="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
+    <div class="space-y-8">
+      <!-- Header -->
+      <div class="space-y-2">
+        <h1 class="text-3xl font-bold tracking-tight text-gray-900">Log Monitor</h1>
+        <p class="text-sm text-gray-600">
+          Fetch the latest log entries from files inside <code>var/log</code> without manually opening server log files.
+        </p>
+      </div>
+
+      <!-- API Form Section -->
+      <div class="grid grid-cols-1 gap-x-8 gap-y-10 border-b border-gray-900/10 pb-12 md:grid-cols-3">
+        <div>
+          <h2 class="text-base font-semibold leading-7 text-gray-900">Log Request</h2>
+          <p class="mt-1 text-sm leading-6 text-gray-600">
+            Choose a log file, number of entries, and an optional keyword filter.
+          </p>
+        </div>
+
+        <form id="log-form" class="grid max-w-3xl grid-cols-1 gap-x-6 gap-y-6 sm:grid-cols-6 md:col-span-2">
+          <div class="sm:col-span-4">
+            <label for="filename" class="block text-sm font-medium leading-6 text-gray-900">Filename</label>
+            <div class="mt-2">
+              <div class="flex items-center rounded-md bg-white pl-3 outline outline-1 -outline-offset-1 outline-gray-300 focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-indigo-600">
+                <div class="shrink-0 text-sm text-gray-500 select-none">var/log/</div>
+                <input
+                  id="filename"
+                  name="filename"
+                  type="text"
+                  value="apache/log3.txt"
+                  placeholder="apache/log3.txt"
+                  class="block min-w-0 grow bg-white py-2 pr-3 pl-1 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none"
+                />
+              </div>
+              <p class="mt-1 text-xs text-gray-500">
+                Examples: <code>log1.txt</code>, <code>apache/log3.txt</code>
+              </p>
+            </div>
+          </div>
+
+          <div class="sm:col-span-2">
+            <label for="limit" class="block text-sm font-medium leading-6 text-gray-900">Number of entries</label>
+            <div class="mt-2">
+              <input
+                id="limit"
+                name="limit"
+                type="number"
+                min="1"
+                max="10000"
+                value="10"
+                class="block w-full rounded-md bg-white px-3 py-2 text-sm text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600"
+              />
+            </div>
+          </div>
+
+          <div class="sm:col-span-4">
+            <label for="keyword" class="block text-sm font-medium leading-6 text-gray-900">Keyword filter</label>
+            <div class="mt-2">
+              <input
+                id="keyword"
+                name="keyword"
+                type="text"
+                placeholder="404"
+                class="block w-full rounded-md bg-white px-3 py-2 text-sm text-gray-900 outline outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600"
+              />
+              <p class="mt-1 text-xs text-gray-500">
+                Leave empty to return the newest entries without filtering.
+              </p>
+            </div>
+          </div>
+
+          <div class="sm:col-span-2 flex items-end">
+            <button
+              id="submit-btn"
+              type="submit"
+              class="w-full rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+            >
+              Fetch logs
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Response Section -->
+      <div class="grid grid-cols-1 gap-x-8 gap-y-10 border-b border-gray-900/10 pb-12 md:grid-cols-3">
+        <div>
+          <h2 class="text-base font-semibold leading-7 text-gray-900">Response</h2>
+          <p class="mt-1 text-sm leading-6 text-gray-600">
+            Newest log entries appear first. Errors are shown below if the request fails.
+          </p>
+        </div>
+
+        <div class="grid max-w-4xl grid-cols-1 gap-6 md:col-span-2">
+          <!-- Meta card -->
+          <div class="rounded-lg border bg-white p-4">
+            <div class="grid grid-cols-1 gap-3 text-sm text-gray-600 sm:grid-cols-3">
+              <div>
+                <div class="font-medium text-gray-900">Filename</div>
+                <div id="meta-filename" class="mt-1 break-all">-</div>
+              </div>
+              <div>
+                <div class="font-medium text-gray-900">Count</div>
+                <div id="meta-count" class="mt-1">0</div>
+              </div>
+              <div>
+                <div class="font-medium text-gray-900">Keyword</div>
+                <div id="meta-keyword" class="mt-1 break-all">-</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Results card -->
+          <div class="rounded-lg border bg-white overflow-hidden">
+            <div class="border-b border-gray-200 px-4 py-3">
+              <h3 class="text-sm font-semibold text-gray-900">Log entries</h3>
+            </div>
+            <div class="bg-gray-900 p-4">
+              <pre id="results" class="max-h-[540px] overflow-auto whitespace-pre-wrap break-words text-sm leading-6 text-green-200">No logs fetched yet.</pre>
+            </div>
+          </div>
+
+          <!-- Error card -->
+          <div
+            id="error-box"
+            class="hidden rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+          ></div>
+        </div>
+      </div>
+
+      <!-- Quick examples -->
+      <div class="grid grid-cols-1 gap-x-8 gap-y-10 md:grid-cols-3">
+        <div>
+          <h2 class="text-base font-semibold leading-7 text-gray-900">Examples</h2>
+          <p class="mt-1 text-sm leading-6 text-gray-600">
+            Quick examples you can try in the UI.
+          </p>
+        </div>
+
+        <div class="grid max-w-4xl grid-cols-1 gap-4 md:col-span-2 sm:grid-cols-2">
+          <button
+            type="button"
+            data-filename="log1.txt"
+            data-limit="5"
+            data-keyword=""
+            class="example-btn rounded-lg border bg-white p-4 text-left hover:bg-gray-50"
+          >
+            <div class="text-sm font-semibold text-gray-900">Latest app logs</div>
+            <div class="mt-1 text-sm text-gray-600">filename: <code>log1.txt</code></div>
+          </button>
+
+          <button
+            type="button"
+            data-filename="apache/log3.txt"
+            data-limit="10"
+            data-keyword="404"
+            class="example-btn rounded-lg border bg-white p-4 text-left hover:bg-gray-50"
+          >
+            <div class="text-sm font-semibold text-gray-900">Apache 404 entries</div>
+            <div class="mt-1 text-sm text-gray-600">filename: <code>apache/log3.txt</code>, keyword: <code>404</code></div>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById("log-form");
+    const submitBtn = document.getElementById("submit-btn");
+    const filenameInput = document.getElementById("filename");
+    const limitInput = document.getElementById("limit");
+    const keywordInput = document.getElementById("keyword");
+
+    const results = document.getElementById("results");
+    const errorBox = document.getElementById("error-box");
+    const metaFilename = document.getElementById("meta-filename");
+    const metaCount = document.getElementById("meta-count");
+    const metaKeyword = document.getElementById("meta-keyword");
+
+    function setLoading(isLoading) {
+      submitBtn.disabled = isLoading;
+      submitBtn.textContent = isLoading ? "Fetching..." : "Fetch logs";
+      submitBtn.classList.toggle("opacity-60", isLoading);
+      submitBtn.classList.toggle("cursor-not-allowed", isLoading);
+    }
+
+    function showError(message) {
+      errorBox.textContent = message;
+      errorBox.classList.remove("hidden");
+    }
+
+    function hideError() {
+      errorBox.textContent = "";
+      errorBox.classList.add("hidden");
+    }
+
+    async function fetchLogs() {
+      const filename = filenameInput.value.trim();
+      const limit = limitInput.value.trim();
+      const keyword = keywordInput.value.trim();
+
+      const params = new URLSearchParams();
+      params.set("filename", filename);
+      params.set("limit", limit || "10");
+      if (keyword) params.set("keyword", keyword);
+
+      setLoading(true);
+      hideError();
+      results.textContent = "Loading...";
+
+      try {
+        const response = await fetch(`/logs?${params.toString()}`);
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.detail || "Request failed");
+        }
+
+        metaFilename.textContent = data.filename || "-";
+        metaCount.textContent = String(data.count ?? 0);
+        metaKeyword.textContent = data.keyword || "-";
+
+        if (!data.entries || data.entries.length === 0) {
+          results.textContent = "No matching log entries found.";
+        } else {
+          results.textContent = data.entries.join("\n");
+        }
+      } catch (error) {
+        results.textContent = "No logs fetched yet.";
+        showError(error.message || "Something went wrong.");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      await fetchLogs();
+    });
+
+    document.querySelectorAll(".example-btn").forEach((button) => {
+      button.addEventListener("click", async () => {
+        filenameInput.value = button.dataset.filename || "";
+        limitInput.value = button.dataset.limit || "10";
+        keywordInput.value = button.dataset.keyword || "";
+        await fetchLogs();
+      });
+    });
+  </script>
+</body>
+</html>
