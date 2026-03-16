@@ -1,0 +1,5 @@
+server started
+database connected
+user login success
+user login failed
+background job completed
