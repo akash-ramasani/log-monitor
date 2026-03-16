@@ -6,10 +6,6 @@ BASE_LOG_DIR = (Path(__file__).resolve().parent.parent / "var" / "log").resolve(
 
 
 def resolve_log_path(filename: str) -> Path:
-    """
-    Resolve a user-provided filename safely under the allowed log directory.
-    Prevents path traversal like ../../etc/passwd.
-    """
     if not filename:
         raise ValueError("filename is required")
 
@@ -34,12 +30,6 @@ def tail_lines(
     chunk_size: int = 8192,
     encoding: str = "utf-8",
 ) -> List[str]:
-    """
-    Read the file efficiently from the end and return up to `limit` matching lines.
-    Newest lines are returned first.
-
-    This avoids reading the full file into memory, which is important for large files.
-    """
     if limit <= 0:
         return []
 
@@ -63,10 +53,8 @@ def tail_lines(
 
             lines = buffer.split(b"\n")
 
-            # Keep the first partial line in buffer for the next iteration
             buffer = lines[0]
 
-            # Process complete lines from newest to oldest
             for raw_line in reversed(lines[1:]):
                 if keyword_bytes and keyword_bytes not in raw_line:
                     continue
@@ -77,7 +65,6 @@ def tail_lines(
                 if len(results) >= limit:
                     break
 
-        # If we still need more, process the remaining buffer as the first line
         if len(results) < limit and buffer:
             if not keyword_bytes or keyword_bytes in buffer:
                 results.append(buffer.decode(encoding, errors="replace"))
